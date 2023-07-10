@@ -15,9 +15,9 @@ const contractABI = [];
 
 function App() {
   const [account, setAccount] = useState(null);
-  const [image, setImage] = useState(rightImg);
   const [web3, setWeb3] = useState(null);
   const [contract, setContract] = useState(null);
+  const [network, setNetwork] = useState(1);
 
   const connectMetamask = async () => {
     const provider = await detectEthereumProvider();
@@ -33,10 +33,6 @@ function App() {
     } else {
       console.log('Please install MetaMask!');
     }
-  };
-
-  const toggleImage = () => {
-    setImage(prevImage => prevImage === rightImg ? leftImg : rightImg);
   };
 
   // This is your function to send a transaction
@@ -63,29 +59,26 @@ function App() {
 
   return (
     <Container>
+      <h1 className='text-center mb-4'>Glacis Train Track Fantom → Fuji</h1>
       <Row className="align-items-center">
-        <Col><h1>Glacis Train Track Demo</h1></Col>
         <Col>
           <Dropdown>
             <Dropdown.Toggle variant="success" id="dropdown-basic">
-              Dropdown 1
+              Network ({network == 1 ? 'Axelar' : 'LayerZero'})
             </Dropdown.Toggle>
             <Dropdown.Menu>
-              <Dropdown.Item href="#/action-1">Fantom</Dropdown.Item>
-              <Dropdown.Item href="#/action-2">Fuji</Dropdown.Item>
+              <Dropdown.Item onClick={() => setNetwork(1)}>Axelar</Dropdown.Item>
+              <Dropdown.Item onClick={() => setNetwork(2)}>LayerZero</Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>
         </Col>
         <Col>
-          <Dropdown>
-            <Dropdown.Toggle variant="success" id="dropdown-basic">
-              Dropdown 2
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              <Dropdown.Item href="#/action-1">Fantom</Dropdown.Item>
-              <Dropdown.Item href="#/action-2">Fuji</Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
+          <Button
+            target='_blank'
+            href={network == 1 ? 'https://testnet.axelarscan.io/gmp/search?sourceChain=fantom' : 'https://layerzeroscan.com/'}
+          >
+            Go to Network Explorer
+          </Button>
         </Col>
         <Col>
           <Button onClick={connectMetamask}>Connect Metamask</Button>
@@ -93,7 +86,14 @@ function App() {
         </Col>
       </Row>
       <Row className="justify-content-center">
-        <Image onClick={toggleImage} src={image} rounded />
+        <Image
+          className='train-track mt-5'
+          onClick={() => { setNetwork(network == 1 ? 2 : 1) }}
+          src={network == 1 ? leftImg : rightImg} rounded
+        />
+      </Row>
+      <Row className='align-items-center'>
+        <h3 className='mt-5'>Destination value is: {0}</h3>
       </Row>
     </Container>
   );

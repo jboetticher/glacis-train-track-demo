@@ -36,3 +36,8 @@
     transform: rotate(360deg);
   }
 }
+
+.train-track {
+  width: 500px !important; /* Or the size you prefer */
+  height: auto; /* Keep aspect ratio */
+}
