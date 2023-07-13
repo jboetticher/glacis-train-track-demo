@@ -1,101 +1,123 @@
 // App.js
 import React, { useState } from 'react';
-import Web3 from 'web3';
-import detectEthereumProvider from '@metamask/detect-provider';
-import { Container, Row, Col, Dropdown, Button, Image } from 'react-bootstrap';
+import { ChainId, DAppProvider, useEthers, useContractFunction, useCall, FantomTestnet } from '@usedapp/core';
+import { ethers } from 'ethers';
+import { Container, Row, Col, Dropdown, Button, Image, Form } from 'react-bootstrap';
+import sampleABI from './sampleABI.json';
 
 const rightImg = './track-right.png';
 const leftImg = './track-left.png';
 
 // Add your contract address here
-const contractAddress = 'your_contract_address';
+const FANTOM_SAMPLE_CONTRACT_ADDRESS = '0xb7C80bCBbebB178FBD5755f50BA94Cc474730Ed1';
+const READ_VALUE_FUNCTION = 'value';
+const WRITE_VALUE_FUNCTION = 'setRemoteValue';
 
 // And your contract ABI
-const contractABI = [];
 
-function App() {
-  const [account, setAccount] = useState(null);
-  const [web3, setWeb3] = useState(null);
-  const [contract, setContract] = useState(null);
-  const [network, setNetwork] = useState(1);
+function AppBody() {
+  const [gmpNetwork, setGMPNetwork] = useState(1);
+  const [sendValue, setSendValue] = useState();
 
-  const connectMetamask = async () => {
-    const provider = await detectEthereumProvider();
+  const { activateBrowserWallet, deactivate, account } = useEthers();
+  const FANTOM_CONTRACT = new ethers.Contract(FANTOM_SAMPLE_CONTRACT_ADDRESS, sampleABI);
+  const { state, send } = useContractFunction(FANTOM_CONTRACT, WRITE_VALUE_FUNCTION);
+  const contractValue = useCall({ contract: FANTOM_CONTRACT, method: READ_VALUE_FUNCTION, args: [] }, { chainId: ChainId.FantomTestnet });
 
-    if (provider) {
-      const web3Instance = new Web3(window.ethereum);
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      const contractInstance = new web3Instance.eth.Contract(contractABI, contractAddress);
+  console.log("contract value:", contractValue?.value, contractValue?.error)
 
-      setWeb3(web3Instance);
-      setAccount(accounts[0]);
-      setContract(contractInstance);
-    } else {
-      console.log('Please install MetaMask!');
-    }
-  };
-
-  // This is your function to send a transaction
+  // Send a transaction
   const sendTransaction = async () => {
-    if (!web3 || !contract) {
-      console.log('Web3 or contract not loaded');
-      return;
+
+    const encoder = new ethers.utils.AbiCoder();
+    const payload = encoder.encode(["uint256"], [sendValue])
+    // sends to itself, hardcoded fantom testnet. todo: let user input value
+    try {
+      send(
+        gmpNetwork,
+        ChainId.FantomTestnet,
+        FANTOM_SAMPLE_CONTRACT_ADDRESS,
+        payload,
+        { value: "300000000000000000" }
+      );
     }
-
-    // Replace 'myFunction' with your contract's function
-    // Replace 'args1', 'args2' with your actual arguments
-    const gasPrice = await web3.eth.getGasPrice();
-    const gasEstimate = await contract.methods.myFunction('args1', 'args2').estimateGas({ from: account });
-
-    contract.methods.myFunction('args1', 'args2')
-      .send({ from: account, gasPrice: gasPrice, gas: gasEstimate })
-      .on('transactionHash', (hash) => {
-        console.log('Transaction sent with hash: ', hash);
-      })
-      .on('error', (error) => {
-        console.log('Error sending transaction: ', error);
-      });
+    catch (e) {
+      console.log(e)
+    }
   };
 
   return (
     <Container>
-      <h1 className='text-center mb-4'>Glacis Train Track Fantom → Fuji</h1>
+      <h1 className='text-center mb-4'>Glacis Train Track Fantom → Fantom</h1>
       <Row className="align-items-center">
         <Col>
           <Dropdown>
             <Dropdown.Toggle variant="success" id="dropdown-basic">
-              Network ({network == 1 ? 'Axelar' : 'LayerZero'})
+              Network ({gmpNetwork === 1 ? 'Axelar' : 'LayerZero'})
             </Dropdown.Toggle>
             <Dropdown.Menu>
-              <Dropdown.Item onClick={() => setNetwork(1)}>Axelar</Dropdown.Item>
-              <Dropdown.Item onClick={() => setNetwork(2)}>LayerZero</Dropdown.Item>
+              <Dropdown.Item onClick={() => setGMPNetwork(1)}>Axelar</Dropdown.Item>
+              <Dropdown.Item onClick={() => setGMPNetwork(2)}>LayerZero</Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>
         </Col>
         <Col>
           <Button
             target='_blank'
-            href={network == 1 ? 'https://testnet.axelarscan.io/gmp/search?sourceChain=fantom' : 'https://layerzeroscan.com/'}
+            href={gmpNetwork === 1 ? 'https://testnet.axelarscan.io/gmp/search?sourceChain=fantom' : 'https://testnet.layerzeroscan.com/'}
           >
             Go to Network Explorer
           </Button>
         </Col>
         <Col>
-          <Button onClick={connectMetamask}>Connect Metamask</Button>
           <Button onClick={sendTransaction}>Send Transaction</Button>
+        </Col>
+        <Col>
+          <Button onClick={account ? deactivate : activateBrowserWallet}>
+            {account ? "Disconnect " + account.substring(0, 8) + "..." : "Connect Metamask"}
+          </Button>
+        </Col>
+      </Row>
+      <Row className='mt-4'>
+        <Col>
+          <Form.Control 
+            type="number" 
+            placeholder="Enter a number" 
+            value={sendValue} 
+            onChange={(e) => setSendValue(e.target.value)}
+          />
         </Col>
       </Row>
       <Row className="justify-content-center">
         <Image
           className='train-track mt-5'
-          onClick={() => { setNetwork(network == 1 ? 2 : 1) }}
-          src={network == 1 ? leftImg : rightImg} rounded
+          onClick={() => { setGMPNetwork(gmpNetwork === 1 ? 2 : 1) }}
+          src={gmpNetwork === 1 ? leftImg : rightImg} rounded
         />
       </Row>
       <Row className='align-items-center'>
-        <h3 className='mt-5'>Destination value is: {0}</h3>
+        <h3 className='mt-5'>Destination value is: {contractValue?.value[0].toString()}</h3>
       </Row>
     </Container>
+  );
+}
+
+const DAppConfig = {
+  readOnlyChainId: ChainId.FantomTestnet,
+  readOnlyUrls: {
+    [ChainId.FantomTestnet]: 'https://rpc.testnet.fantom.network/',
+  },
+  networks: [
+    { ...FantomTestnet, rpcUrl: 'https://rpc.testnet.fantom.network/' }
+  ],
+  //, ChainId.AvalancheTestnet]
+}
+
+function App() {
+  return (
+    <DAppProvider config={DAppConfig}>
+      <AppBody />
+    </DAppProvider>
   );
 }
 
